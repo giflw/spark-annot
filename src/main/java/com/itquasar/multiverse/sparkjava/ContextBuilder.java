@@ -8,16 +8,14 @@ public class ContextBuilder {
 
     private final SparkApplication application;
     private final Map<String, Object> properties;
-    private final Map<Class, Object> instances;
 
-    private ContextBuilder(SparkApplication application, Map<String, Object> properties, Map<Class, Object> instances) {
+    private ContextBuilder(SparkApplication application, Map<String, Object> properties) {
         this.application = application;
         this.properties = properties;
-        this.instances = instances;
     }
 
     public static ContextBuilder of(SparkApplication application) {
-        return new ContextBuilder(application, new HashMap<>(), new HashMap<>());
+        return new ContextBuilder(application, new HashMap<>());
     }
 
     public ContextBuilder addProperty(String name, Object value) {
@@ -25,20 +23,17 @@ public class ContextBuilder {
         return this;
     }
 
-    public <T> ContextBuilder addInstance(T object) {
-        this.instances.put(object.getClass(), object);
-        return this;
+    public ContextBuilder addProperty(Class type, Object value) {
+        return addProperty(type, null, value);
     }
 
-    public <T, S extends T> ContextBuilder addInstance(Class<T> type, S object) {
-        this.instances.put(type, object);
+    public ContextBuilder addProperty(Class type, String classifier, Object value) {
+        this.properties.put(Context.typeToPropertyName(type, classifier), value);
         return this;
     }
 
     public Context build() {
-        return new Context(this.application,
-                Collections.unmodifiableMap(this.properties), Collections.unmodifiableMap(this.instances)
-        );
+        return new Context(this.application, Collections.unmodifiableMap(this.properties));
     }
 
 }

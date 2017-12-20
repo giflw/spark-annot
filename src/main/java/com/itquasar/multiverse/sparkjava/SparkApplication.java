@@ -27,8 +27,14 @@ public class SparkApplication {
     public static SparkApplication launch(Class<SparkApplication> sparkAppClass) throws IllegalAccessException, InstantiationException {
         SparkApplication app = sparkAppClass.newInstance();
         SparkApp annotation = sparkAppClass.getAnnotation(SparkApp.class);
+        app.config(annotation);
         app.start(annotation);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> app.stop()));
+        if (annotation.registerShutdownHook()) {
+            LOGGER.warn("Registering shutdown hook");
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> app.stop()));
+        } else {
+            LOGGER.warn("Shutdown hook NOT registered");
+        }
         return app;
     }
 
@@ -86,17 +92,20 @@ public class SparkApplication {
         }
     }
 
-    private final void injectContext(Object instance, Context context){
+    private final void injectContext(Object instance, Context context) {
         if (ContextAware.class.isInstance(instance)) {
             ((ContextAware) instance).inject(context);
         }
     }
 
-    public final void start(SparkApp sparkApp) {
-        LOGGER.warn("Starting app with {}.", sparkApp);
+    public void config(SparkApp sparkApp) {
+        LOGGER.warn("Configuring app with {}.", sparkApp);
         Spark.port(sparkApp.port());
         Spark.ipAddress(sparkApp.ipAddress());
-
+        LOGGER.warn("App configured");
+    }
+    public void start(SparkApp sparkApp) {
+        LOGGER.warn("Starting app with {}.", sparkApp);
         String prefix = sparkApp.routesPackage().isEmpty()
                 ? this.getClass().getPackage().getName()
                 : sparkApp.routesPackage();
@@ -108,13 +117,13 @@ public class SparkApplication {
             this.registerFilters(reflections, context);
             this.registerRoutes(reflections, context);
         }
-
         LOGGER.warn("App started");
     }
 
-    public final void stop() {
+    public void stop() {
         LOGGER.warn("Stoping app");
         Spark.stop();
         LOGGER.warn("App stopped");
     }
+
 }

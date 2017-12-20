@@ -7,32 +7,46 @@ public class Context {
 
     private final SparkApplication application;
     private final Map<String, Object> properties;
-    private final Map<Class, Object> instances;
 
-    public Context(SparkApplication application, Map<String, Object> properties, Map<Class, Object> instances) {
+    public Context(SparkApplication application, Map<String, Object> properties) {
         this.application = application;
         this.properties = properties;
-        this.instances = instances;
+    }
+
+    public static <T> String typeToPropertyName(Class<T> type) {
+        return typeToPropertyName(type, null);
+    }
+
+    public static <T> String typeToPropertyName(Class<T> type, String classifier) {
+        classifier = classifier == null ? "" : classifier;
+        return type.getCanonicalName() + (classifier.isEmpty() ? "" : "_" + classifier);
     }
 
     public SparkApplication application() {
         return this.application;
     }
 
-    public <T> Optional<T> instance(Class<T> type) {
-        return Optional.ofNullable((T) instances.get(type));
-    }
-
-    public <T> T instance(Class<T> type, T defaultValue) {
-        return instance(type).orElse(defaultValue);
-    }
-
     public <T> Optional<T> property(String name, Class<T> type) {
-        Object o = properties.get(name);
-        return o == null ? Optional.empty() : Optional.of((T) o);
+        return Optional.ofNullable(type.cast(properties.get(name)));
     }
 
     public <T> T property(String name, T defaultValue) {
         return property(name, (Class<T>) defaultValue.getClass()).orElse(defaultValue);
+    }
+
+    public <T> Optional<T> property(Class<T> type) {
+        return property(typeToPropertyName(type), type);
+    }
+
+    public <T> Optional<T> property(Class<T> type, String classifier) {
+        return property(typeToPropertyName(type, classifier), type);
+    }
+
+    public <T> T property(Class<T> type, T defaultValue) {
+        return property(typeToPropertyName(type), defaultValue);
+    }
+
+    public <T> T property(Class<T> type, String classifier, T defaultValue) {
+        return property(typeToPropertyName(type, classifier), defaultValue);
     }
 }
