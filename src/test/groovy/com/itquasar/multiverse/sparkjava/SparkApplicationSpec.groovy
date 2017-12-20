@@ -16,7 +16,7 @@ class SparkApplicationSpec extends GebReportingSpec {
 
     def "assert hello world"() {
         when: "root path called"
-        go "/"
+        go "/hello"
 
         then: "content must be Hello World"
         driver.pageSource == "Hello World"

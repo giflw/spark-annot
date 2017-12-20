@@ -1,15 +1,17 @@
 package com.itquasar.multiverse.sparkjava;
 
+import com.itquasar.multiverse.sparkjava.util.Pair;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spark.Filter;
-import spark.Route;
-import spark.Spark;
+import spark.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @SparkApp(port = 4567, ipAddress = "0.0.0.0", routesPackage = "", registerShutdownHook = true)
 public class SparkApplication {
@@ -51,17 +53,70 @@ public class SparkApplication {
                 LOGGER.error("Route {} wont be registered as dont have {} annotation", route, SparkRoute.class.getCanonicalName());
             } else {
                 try {
-                    //Spark.get(path, accecptType, route);
-                    Method function = Spark.class.getDeclaredMethod(
-                            routeMeta.method().name().toLowerCase(),
-                            String.class, String.class, Route.class
-                    );
                     Route routeInstance = route.newInstance();
                     this.injectContext(routeInstance, context);
-                    function.invoke(null, routeMeta.path(), routeMeta.acceptType(), routeInstance);
+
+                    // Spark.get(path, accecptType, route, responseTransformer);
+                    List<Pair<Class, Object>> parameters = new LinkedList<Pair<Class, Object>>() {{
+                        add(Pair.of(String.class, routeMeta.path()));
+                        add(Pair.of(String.class, routeMeta.acceptType()));
+                        add(Pair.of(Route.class, routeInstance));
+                        if (!routeMeta.transformer().equals(ResponseTransformer.class)) {
+                            add(Pair.of(ResponseTransformer.class, routeMeta.transformer().newInstance()));
+                        }
+                    }};
+                    Method function = Spark.class.getDeclaredMethod(
+                            routeMeta.method().name().toLowerCase(),
+                            parameters.stream().map(Pair::getFirst).collect(Collectors.toList()).toArray(new Class[0])
+                    );
+                    function.invoke(null, parameters.stream().map(Pair::getSecond).toArray());
                     LOGGER.warn("Route regitered: {} {} [{}]", routeMeta.method(), routeMeta.path(), route);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
                     LOGGER.error("Error registering route {}", route, e);
+                }
+            }
+        }
+    }
+
+    private final void registerTemplateAndViews(Reflections reflections, Context context) {
+        Set<Class<? extends TemplateViewRoute>> routes = reflections.getSubTypesOf(TemplateViewRoute.class);
+        for (Class<? extends TemplateViewRoute> route : routes) {
+            LOGGER.warn("Found template and view route {}", route);
+            SparkRoute routeMeta = route.getAnnotation(SparkRoute.class);
+            if (routeMeta == null) {
+                LOGGER.error("Template and view route {} wont be registered as dont have {} annotation", route, SparkRoute.class.getCanonicalName());
+            } else {
+                try {
+                    TemplateViewRoute routeInstance = route.newInstance();
+                    this.injectContext(routeInstance, context);
+
+                    // Spark.get(path, acccepType, TEmpateViewRoute, TemplateEngine);
+                    List<Pair<Class, Object>> parameters = new LinkedList<Pair<Class, Object>>() {{
+                        add(Pair.of(String.class, routeMeta.path()));
+                        add(Pair.of(String.class, routeMeta.acceptType()));
+                        add(Pair.of(TemplateViewRoute.class, routeInstance));
+                        if (!routeMeta.engine().equals(TemplateEngine.class)) {
+                            add(Pair.of(TemplateEngine.class, routeMeta.engine().newInstance()));
+                        } else {
+                            Set<Class<? extends TemplateEngine>> engines = new Reflections("spark").getSubTypesOf(TemplateEngine.class);
+                            if (engines.size() == 1) {
+                                add(Pair.of(TemplateEngine.class, engines.iterator().next().newInstance()));
+                            } else {
+                                throw new IllegalArgumentException(
+                                        "Found " + engines.size() +
+                                                " template engines. Please specify wich engine to use or put just one in the path"
+                                );
+                            }
+                        }
+                    }};
+                    Method function = Spark.class.getDeclaredMethod(
+                            routeMeta.method().name().toLowerCase(),
+                            parameters.stream().map(Pair::getFirst).collect(Collectors.toList()).toArray(new Class[0])
+                    );
+                    function.invoke(null, parameters.stream().map(Pair::getSecond).toArray());
+                    LOGGER.warn("Template and view route regitered: {} {} [{}]", routeMeta.method(), routeMeta.path(), route);
+                } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+                    LOGGER.error("Error registering template and view route {}", route, e);
                 }
             }
         }
@@ -104,6 +159,7 @@ public class SparkApplication {
         Spark.ipAddress(sparkApp.ipAddress());
         LOGGER.warn("App configured");
     }
+
     public void start(SparkApp sparkApp) {
         LOGGER.warn("Starting app with {}.", sparkApp);
         String prefix = sparkApp.routesPackage().isEmpty()
@@ -116,6 +172,7 @@ public class SparkApplication {
             Context context = context();
             this.registerFilters(reflections, context);
             this.registerRoutes(reflections, context);
+            this.registerTemplateAndViews(reflections, context);
         }
         LOGGER.warn("App started");
     }
