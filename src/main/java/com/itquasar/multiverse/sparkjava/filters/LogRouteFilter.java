@@ -8,13 +8,15 @@ import spark.Filter;
 import spark.Request;
 import spark.Response;
 
+import java.time.LocalDateTime;
+
 @SparkFilter(when = FilterWhen.BEFORE)
 public class LogRouteFilter implements Filter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LogRouteFilter.class);
 
     @Override
-    public void handle(Request request, Response response) throws Exception {
-        LOGGER.info("Accesing route " + request.pathInfo());
+    public void handle(Request request, Response response) {
+        LOGGER.info("Accesing route {} at {}", request.pathInfo(), LocalDateTime.now());
     }
 }

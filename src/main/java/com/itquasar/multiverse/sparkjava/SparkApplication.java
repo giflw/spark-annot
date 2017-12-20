@@ -17,14 +17,19 @@ public class SparkApplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkApplication.class);
 
     public static void main(String[] args) throws InstantiationException, IllegalAccessException {
-        SparkApplication.launch(SparkApplication.class);
+        SparkApplication.launch();
     }
 
-    private static void launch(Class<SparkApplication> sparkAppClass) throws IllegalAccessException, InstantiationException {
+    public static SparkApplication launch() throws IllegalAccessException, InstantiationException {
+        return launch(SparkApplication.class);
+    }
+
+    public static SparkApplication launch(Class<SparkApplication> sparkAppClass) throws IllegalAccessException, InstantiationException {
         SparkApplication app = sparkAppClass.newInstance();
         SparkApp annotation = sparkAppClass.getAnnotation(SparkApp.class);
         app.start(annotation);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> app.stop()));
+        return app;
     }
 
     protected void registerRoutes(Reflections reflections) {

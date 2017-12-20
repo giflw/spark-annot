@@ -12,6 +12,6 @@ public class HelloWorld implements Route {
     @Override
     public String handle(Request request, Response response) {
         response.type("text/plain");
-        return "HelloWorld";
+        return "Hello World";
     }
 }
