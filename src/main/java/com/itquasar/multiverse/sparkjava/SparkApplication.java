@@ -32,7 +32,11 @@ public class SparkApplication {
         return app;
     }
 
-    protected void registerRoutes(Reflections reflections) {
+    protected Context context() {
+        return ContextBuilder.of(this).build();
+    }
+
+    private final void registerRoutes(Reflections reflections, Context context) {
         Set<Class<? extends Route>> routes = reflections.getSubTypesOf(Route.class);
         for (Class<? extends Route> route : routes) {
             LOGGER.warn("Found route {}", route);
@@ -41,14 +45,14 @@ public class SparkApplication {
                 LOGGER.error("Route {} wont be registered as dont have {} annotation", route, SparkRoute.class.getCanonicalName());
             } else {
                 try {
-
-                    Spark.before();
                     //Spark.get(path, accecptType, route);
                     Method function = Spark.class.getDeclaredMethod(
                             routeMeta.method().name().toLowerCase(),
                             String.class, String.class, Route.class
                     );
-                    function.invoke(null, routeMeta.path(), routeMeta.acceptType(), route.newInstance());
+                    Route routeInstance = route.newInstance();
+                    this.injectContext(routeInstance, context);
+                    function.invoke(null, routeMeta.path(), routeMeta.acceptType(), routeInstance);
                     LOGGER.warn("Route regitered: {} {} [{}]", routeMeta.method(), routeMeta.path(), route);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
                     LOGGER.error("Error registering route {}", route, e);
@@ -57,7 +61,7 @@ public class SparkApplication {
         }
     }
 
-    protected void registerFilters(Reflections reflections) {
+    private final void registerFilters(Reflections reflections, Context context) {
         Set<Class<? extends Filter>> filters = reflections.getSubTypesOf(Filter.class);
         for (Class<? extends Filter> filter : filters) {
             LOGGER.warn("Found filter {}", filter);
@@ -71,7 +75,9 @@ public class SparkApplication {
                             filterMeta.when().name().toLowerCase(),
                             String.class, String.class, Filter[].class
                     );
-                    function.invoke(null, filterMeta.path(), filterMeta.acceptType(), new Filter[]{filter.newInstance()});
+                    Filter filterInstance = filter.newInstance();
+                    this.injectContext(filterInstance, context);
+                    function.invoke(null, filterMeta.path(), filterMeta.acceptType(), new Filter[]{filterInstance});
                     LOGGER.warn("Filter regitered: {} {} [{}]", filterMeta.when(), filterMeta.path(), filter);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
                     LOGGER.error("Error registering route {}", filter, e);
@@ -80,7 +86,13 @@ public class SparkApplication {
         }
     }
 
-    public void start(SparkApp sparkApp) {
+    private final void injectContext(Object instance, Context context){
+        if (ContextAware.class.isInstance(instance)) {
+            ((ContextAware) instance).inject(context);
+        }
+    }
+
+    public final void start(SparkApp sparkApp) {
         LOGGER.warn("Starting app with {}.", sparkApp);
         Spark.port(sparkApp.port());
         Spark.ipAddress(sparkApp.ipAddress());
@@ -92,14 +104,15 @@ public class SparkApplication {
         LOGGER.info("Using [{}] as upper package for routes and filters", prefix);
         {
             Reflections reflections = new Reflections(prefix);
-            this.registerFilters(reflections);
-            this.registerRoutes(reflections);
+            Context context = context();
+            this.registerFilters(reflections, context);
+            this.registerRoutes(reflections, context);
         }
 
         LOGGER.warn("App started");
     }
 
-    public void stop() {
+    public final void stop() {
         LOGGER.warn("Stoping app");
         Spark.stop();
         LOGGER.warn("App stopped");
