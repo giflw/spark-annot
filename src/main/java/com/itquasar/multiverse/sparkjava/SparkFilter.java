@@ -1,4 +1,4 @@
-package com.itquasar.sparktest;
+package com.itquasar.multiverse.sparkjava;
 
 import java.lang.annotation.*;
 

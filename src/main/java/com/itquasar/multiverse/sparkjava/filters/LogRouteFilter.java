@@ -1,7 +1,7 @@
-package com.itquasar.sparktest.filters;
+package com.itquasar.multiverse.sparkjava.filters;
 
-import com.itquasar.sparktest.FilterWhen;
-import com.itquasar.sparktest.SparkFilter;
+import com.itquasar.multiverse.sparkjava.FilterWhen;
+import com.itquasar.multiverse.sparkjava.SparkFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Filter;

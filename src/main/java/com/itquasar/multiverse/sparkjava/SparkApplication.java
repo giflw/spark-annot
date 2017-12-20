@@ -1,4 +1,4 @@
-package com.itquasar.sparktest;
+package com.itquasar.multiverse.sparkjava;
 
 import org.reflections.Reflections;
 import org.slf4j.Logger;
@@ -38,11 +38,12 @@ public class SparkApplication {
                 try {
 
                     Spark.before();
+                    //Spark.get(path, accecptType, route);
                     Method function = Spark.class.getDeclaredMethod(
                             routeMeta.method().name().toLowerCase(),
-                            String.class, Route.class
+                            String.class, String.class, Route.class
                     );
-                    function.invoke(null, routeMeta.path(), route.newInstance());
+                    function.invoke(null, routeMeta.path(), routeMeta.acceptType(), route.newInstance());
                     LOGGER.warn("Route regitered: {} {} [{}]", routeMeta.method(), routeMeta.path(), route);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
                     LOGGER.error("Error registering route {}", route, e);
@@ -60,6 +61,7 @@ public class SparkApplication {
                 LOGGER.error("Filter {} wont be registered as dont have {} annotation", filter, SparkFilter.class.getCanonicalName());
             } else {
                 try {
+                    // Spark.before(path, acceptType, filters...);
                     Method function = Spark.class.getDeclaredMethod(
                             filterMeta.when().name().toLowerCase(),
                             String.class, String.class, Filter[].class

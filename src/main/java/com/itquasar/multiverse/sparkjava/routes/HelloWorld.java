@@ -1,12 +1,12 @@
-package com.itquasar.sparktest.routes;
+package com.itquasar.multiverse.sparkjava.routes;
 
-import com.itquasar.sparktest.HttpMethod;
-import com.itquasar.sparktest.SparkRoute;
+import com.itquasar.multiverse.sparkjava.HttpMethod;
+import com.itquasar.multiverse.sparkjava.SparkRoute;
 import spark.Request;
 import spark.Response;
 import spark.Route;
 
-@SparkRoute(method = HttpMethod.GET, path = "/*")
+@SparkRoute(method = HttpMethod.GET, path = "/*", acceptType = "*/*")
 public class HelloWorld implements Route {
 
     @Override

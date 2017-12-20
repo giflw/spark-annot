@@ -1,4 +1,4 @@
-package com.itquasar.sparktest;
+package com.itquasar.multiverse.sparkjava;
 
 import java.lang.annotation.*;
 
@@ -10,4 +10,6 @@ public @interface SparkRoute {
     HttpMethod method();
 
     String path();
+
+    String acceptType() default "*/*";
 }
