@@ -1,5 +1,6 @@
 package com.itquasar.multiverse.sparkjava;
 
+import com.itquasar.multiverse.sparkjava.routes.NotSoSimpleTemplateEngine;
 import com.itquasar.multiverse.sparkjava.util.Pair;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -18,30 +20,45 @@ public class SparkApplication {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkApplication.class);
 
-    public static void main(String[] args) throws InstantiationException, IllegalAccessException {
+    private final TemplateEngine templateEngine;
+
+    private SparkApplication() {
+        this(null);
+    }
+
+    public SparkApplication(TemplateEngine templateEngine) {
+        this.templateEngine = templateEngine;
+    }
+
+    public static void main(String[] args) {
         SparkApplication.launch();
     }
 
-    public static SparkApplication launch() throws IllegalAccessException, InstantiationException {
+    public static SparkApplication launch(){
         return launch(SparkApplication.class);
     }
 
-    public static SparkApplication launch(Class<SparkApplication> sparkAppClass) throws IllegalAccessException, InstantiationException {
-        SparkApplication app = sparkAppClass.newInstance();
-        SparkApp annotation = sparkAppClass.getAnnotation(SparkApp.class);
-        app.config(annotation);
-        app.start(annotation);
-        if (annotation.registerShutdownHook()) {
-            LOGGER.warn("Registering shutdown hook");
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> app.stop()));
-        } else {
-            LOGGER.warn("Shutdown hook NOT registered");
+    public static SparkApplication launch(Class<SparkApplication> sparkAppClass) {
+        try {
+            SparkApplication app = sparkAppClass.newInstance();
+            SparkApp annotation = sparkAppClass.getAnnotation(SparkApp.class);
+            app.config(annotation);
+            app.start(annotation);
+            if (annotation.registerShutdownHook()) {
+                LOGGER.warn("Registering shutdown hook");
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> app.stop()));
+            } else {
+                LOGGER.warn("Shutdown hook NOT registered");
+            }
+            return app;
+        } catch (Exception ex){
+            Spark.stop();
+            throw new Error("Exception during application launch", ex);
         }
-        return app;
     }
 
     protected Context context() {
-        return ContextBuilder.of(this).build();
+        return ContextBuilder.of(this).setDefaultTemplateEngine(new NotSoSimpleTemplateEngine("notSoSimple")).build();
     }
 
     private final void registerRoutes(Reflections reflections, Context context) {
@@ -72,7 +89,7 @@ public class SparkApplication {
                     function.invoke(null, parameters.stream().map(Pair::getSecond).toArray());
                     LOGGER.warn("Route regitered: {} {} [{}]", routeMeta.method(), routeMeta.path(), route);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-                    LOGGER.error("Error registering route {}", route, e);
+                    throw new IllegalArgumentException("Error registering route " + route.getCanonicalName(), e);
                 }
             }
         }
@@ -96,9 +113,14 @@ public class SparkApplication {
                         add(Pair.of(String.class, routeMeta.acceptType()));
                         add(Pair.of(TemplateViewRoute.class, routeInstance));
                         if (!routeMeta.engine().equals(TemplateEngine.class)) {
-                            add(Pair.of(TemplateEngine.class, routeMeta.engine().newInstance()));
+                            Optional<? extends TemplateEngine> engine = context.property(routeMeta.engine());
+                            if (!engine.isPresent()) {
+                                engine = context.property(TemplateEngine.class);
+                            }
+                            add(Pair.of(TemplateEngine.class, engine.isPresent() ? engine.get() : routeMeta.engine().newInstance()));
                         } else {
-                            Set<Class<? extends TemplateEngine>> engines = new Reflections("spark").getSubTypesOf(TemplateEngine.class);
+                            Set<Class<? extends TemplateEngine>> engines = reflections.getSubTypesOf(TemplateEngine.class);
+                            engines = !engines.isEmpty() ? engines : new Reflections("spark").getSubTypesOf(TemplateEngine.class);
                             if (engines.size() == 1) {
                                 add(Pair.of(TemplateEngine.class, engines.iterator().next().newInstance()));
                             } else {
@@ -116,7 +138,7 @@ public class SparkApplication {
                     function.invoke(null, parameters.stream().map(Pair::getSecond).toArray());
                     LOGGER.warn("Template and view route regitered: {} {} [{}]", routeMeta.method(), routeMeta.path(), route);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-                    LOGGER.error("Error registering template and view route {}", route, e);
+                    throw new IllegalArgumentException("Error registering template and view route " + route.getCanonicalName(), e);
                 }
             }
         }
@@ -141,7 +163,7 @@ public class SparkApplication {
                     function.invoke(null, filterMeta.path(), filterMeta.acceptType(), new Filter[]{filterInstance});
                     LOGGER.warn("Filter regitered: {} {} [{}]", filterMeta.when(), filterMeta.path(), filter);
                 } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-                    LOGGER.error("Error registering route {}", filter, e);
+                    throw new IllegalArgumentException("Error registering route " + filter.getCanonicalName(), e);
                 }
             }
         }

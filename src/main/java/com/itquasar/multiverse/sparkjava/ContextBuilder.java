@@ -1,5 +1,7 @@
 package com.itquasar.multiverse.sparkjava;
 
+import spark.TemplateEngine;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +21,9 @@ public class ContextBuilder {
     }
 
     public ContextBuilder addProperty(String name, Object value) {
+        if (this.properties.containsKey(name)) {
+            throw new IllegalArgumentException("PRoperty with name " + name + " is already added! Properties can be added only once!");
+        }
         this.properties.put(name, value);
         return this;
     }
@@ -28,7 +33,12 @@ public class ContextBuilder {
     }
 
     public ContextBuilder addProperty(Class type, String classifier, Object value) {
-        this.properties.put(Context.typeToPropertyName(type, classifier), value);
+        this.addProperty(Context.typeToPropertyName(type, classifier), value);
+        return this;
+    }
+
+    public ContextBuilder setDefaultTemplateEngine(TemplateEngine templateEngine) {
+        this.addProperty(TemplateEngine.class, templateEngine);
         return this;
     }
 

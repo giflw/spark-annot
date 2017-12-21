@@ -1,5 +1,7 @@
 package com.itquasar.multiverse.sparkjava;
 
+import spark.TemplateEngine;
+
 import java.util.Map;
 import java.util.Optional;
 

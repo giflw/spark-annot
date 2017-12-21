@@ -7,13 +7,11 @@ import spark.Request;
 import spark.Response;
 import spark.TemplateViewRoute;
 
-import java.util.HashMap;
-
-@SparkRoute(method = HttpMethod.GET, path = "/hello/tmpl", acceptType = "*/*", engine = SimpleTemplateEngine.class)
-public class TemplatedHello implements TemplateViewRoute {
+@SparkRoute(method = HttpMethod.GET, path = "/hello/tmpl2", acceptType = "*/*", engine = NotSoSimpleTemplateEngine.class)
+public class NotSoSimpleTemplatedHello implements TemplateViewRoute {
 
     @Override
     public ModelAndView handle(Request request, Response response) {
-        return new ModelAndView("Hello World", "hello-world.template");
+        return new ModelAndView("Hello", "World");
     }
 }
